@@ -2,8 +2,10 @@
 
 A first-person shooter prototype built with [Bevy](https://bevyengine.org/) `0.18`
 and [`bevy_rapier3d`](https://github.com/dimforge/bevy_rapier) for physics. You walk
-around procedural hilly terrain and shoot floating "balloon" targets against the
-clock for points.
+around a textured, procedurally generated hilly terrain — enclosed by stone walls
+that follow the ground contour, dotted with layered fir trees, and wrapped in a sky
+dome with atmospheric distance fog — and shoot floating "balloon" targets against
+the clock for points.
 
 ## Gameplay
 
@@ -26,18 +28,20 @@ or after a few seconds without a hit.
 
 ## Controls
 
-| Key / Input | Action            |
-| ----------- | ----------------- |
-| `W A S D`   | Move              |
-| Mouse       | Aim (look)        |
-| `Space`     | Jump              |
-| `F`         | Shoot (hitscan)   |
-| `R`         | Restart round     |
-| `Esc`       | Toggle cursor lock |
+| Key / Input  | Action             |
+| ------------ | ------------------ |
+| `W A S D`    | Move               |
+| Mouse        | Aim (look)         |
+| `Space`      | Jump               |
+| Left click   | Shoot              |
+| `F`          | Toggle fog (fades in/out) |
+| `R`          | Restart round      |
+| `Esc`        | Toggle cursor lock |
 
-A `+` crosshair marks the screen center; the hitscan ray fires through it and the
-crosshair flashes on a hit. The HUD shows score (top-left), countdown (top-right),
-and the active combo multiplier (center).
+A `+` crosshair marks the screen center. Clicking fires a glowing projectile that
+flies toward whatever the crosshair is aimed at (a hitscan ray picks the target);
+the crosshair flashes when the projectile lands a hit. The HUD shows score
+(top-left), countdown (top-right), and the active combo multiplier (center).
 
 ## Requirements
 
@@ -65,21 +69,22 @@ cargo run --release
 
 | File              | Responsibility                                              |
 | ----------------- | ----------------------------------------------------------- |
-| `src/main.rs`     | App setup, plugins, HUD, score/timer/combo resources, systems |
-| `src/player.rs`   | Kinematic capsule + camera, WASD/jump movement, mouse-look  |
-| `src/terrain.rs`  | Procedural noise-based hilly terrain + staircase            |
-| `src/scenery.rs`  | Decorative objects (trees, grass)                           |
+| `src/main.rs`     | App setup, plugins, HUD, score/timer/combo resources, sky dome, systems |
+| `src/player.rs`   | Kinematic capsule + camera, WASD/jump movement, mouse-look, fog fade |
+| `src/terrain.rs`  | Procedural noise-based hilly terrain, staircase, contour-following walls |
+| `src/scenery.rs`  | Decorative objects (layered fir trees, grass)              |
 | `src/balloons.rs` | Spawning, drift/bob motion, and respawn of balloon targets  |
-| `src/shooting.rs` | Hitscan ray, hit detection, scoring, combo logic            |
+| `src/shooting.rs` | Projectile firing/homing, hit detection, scoring, combo logic |
 | `src/effects.rs`  | Explosion effects on balloon hits                           |
+| `assets/`         | Textures: `ground.png`, `leaves.png`, `sky.png`, `stone.png` |
 
 ## Dependencies
 
 - `bevy` 0.18.1 — engine
-- `bevy_rapier3d` 0.34 — 3D physics & collision (debug render enabled)
+- `bevy_rapier3d` 0.34 — 3D physics & collision
 - `noise` 0.9 — procedural terrain heightmap
 - `rand` 0.8 — random balloon placement
 
 ## Status
 
-Prototype — core mechanic validation. Lighting and assets are intentionally minimal.
+Prototype — core mechanic validation. Lighting is intentionally minimal.
