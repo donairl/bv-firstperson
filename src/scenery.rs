@@ -16,25 +16,38 @@ pub fn setup_scenery(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    asset_server: Res<AssetServer>,
 ) {
     let half = SIZE * 0.5 * SPREAD;
     let mut rng = rand::thread_rng();
 
     // Shared meshes/materials so we don't allocate per instance.
     let trunk_mesh = meshes.add(Cylinder::new(0.25, 3.0));
-    let foliage_mesh = meshes.add(Cone {
-        radius: 1.6,
-        height: 3.2,
-    });
     let blade_mesh = meshes.add(Cuboid::new(0.08, 0.5, 0.08));
+
+    // Stacked cones of decreasing size give each tree a layered fir/"cemara" shape.
+    // Each entry is (radius, height, base height in the trunk's local space); the
+    // tiers overlap so there are no gaps between them.
+    let foliage_tiers: [(f32, f32, f32); 4] = [
+        (1.8, 2.2, 1.2),
+        (1.4, 2.0, 2.1),
+        (1.0, 1.8, 3.0),
+        (0.6, 1.6, 3.9),
+    ];
+    // Pre-build each tier's mesh and the local Y of its center (base + half height).
+    let tier_meshes: Vec<(Handle<Mesh>, f32)> = foliage_tiers
+        .iter()
+        .map(|&(radius, height, base)| (meshes.add(Cone { radius, height }), base + height * 0.5))
+        .collect();
 
     let trunk_mat = materials.add(StandardMaterial {
         base_color: Color::srgb(0.40, 0.26, 0.13),
         perceptual_roughness: 1.0,
         ..default()
     });
+    // Tree foliage uses the shared texture for its leaves.
     let foliage_mat = materials.add(StandardMaterial {
-        base_color: Color::srgb(0.13, 0.45, 0.16),
+        base_color_texture: Some(asset_server.load("leaves.png")),
         perceptual_roughness: 0.95,
         ..default()
     });
@@ -60,12 +73,14 @@ pub fn setup_scenery(
                 Collider::cylinder(trunk_h * 0.5, 0.25),
             ))
             .with_children(|parent| {
-                // Foliage sits atop the trunk (local +Y).
-                parent.spawn((
-                    Mesh3d(foliage_mesh.clone()),
-                    MeshMaterial3d(foliage_mat.clone()),
-                    Transform::from_xyz(0.0, trunk_h * 0.5 + 1.4, 0.0),
-                ));
+                // Foliage: stacked cones rising up the trunk's local +Y axis.
+                for (mesh, center_y) in &tier_meshes {
+                    parent.spawn((
+                        Mesh3d(mesh.clone()),
+                        MeshMaterial3d(foliage_mat.clone()),
+                        Transform::from_xyz(0.0, *center_y, 0.0),
+                    ));
+                }
             });
     }
 

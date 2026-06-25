@@ -64,8 +64,93 @@ pub fn setup_player(
                     brightness: 350.0,
                     ..default()
                 },
+                // Atmospheric distance fog (toggle with F via `toggle_fog`).
+                first_person_fog(),
             ));
         });
+}
+
+/// Tracks the fog fade so F fades it in/out smoothly instead of snapping.
+/// `current`/`target` are in 0 (clear) .. 1 (full fog).
+#[derive(Resource)]
+pub struct FogFade {
+    current: f32,
+    target: f32,
+}
+
+impl Default for FogFade {
+    fn default() -> Self {
+        // Start with fog fully on.
+        Self {
+            current: 1.0,
+            target: 1.0,
+        }
+    }
+}
+
+/// Seconds-scaled fade rate (full clear <-> full fog takes ~1/FADE_SPEED seconds).
+const FOG_FADE_SPEED: f32 = 1.5;
+
+/// Full-strength atmospheric extinction/inscattering for the scene's fog.
+fn fog_base() -> (Vec3, Vec3) {
+    match FogFalloff::from_visibility_colors(
+        15.0, // distance up to which objects retain visibility (>= 5% contrast)
+        Color::srgb(0.35, 0.5, 0.66), // atmospheric extinction color
+        Color::srgb(0.8, 0.844, 1.0), // atmospheric inscattering color
+    ) {
+        FogFalloff::Atmospheric {
+            extinction,
+            inscattering,
+        } => (extinction, inscattering),
+        _ => (Vec3::ZERO, Vec3::ZERO),
+    }
+}
+
+/// The distance fog applied to the first-person camera, at full strength.
+fn first_person_fog() -> DistanceFog {
+    let (extinction, inscattering) = fog_base();
+    DistanceFog {
+        color: Color::srgba(0.35, 0.48, 0.66, 1.0),
+        directional_light_color: Color::srgba(1.0, 0.95, 0.85, 0.5),
+        directional_light_exponent: 30.0,
+        falloff: FogFalloff::Atmospheric {
+            extinction,
+            inscattering,
+        },
+    }
+}
+
+/// F flips the fade target so the fog fades out (or back in) over time.
+pub fn toggle_fog(keyboard: Res<ButtonInput<KeyCode>>, mut fade: ResMut<FogFade>) {
+    if keyboard.just_pressed(KeyCode::KeyF) {
+        fade.target = if fade.target > 0.5 { 0.0 } else { 1.0 };
+    }
+}
+
+/// Ease `current` toward `target` and scale the fog's density accordingly.
+pub fn animate_fog(
+    time: Res<Time>,
+    mut fade: ResMut<FogFade>,
+    mut camera: Query<&mut DistanceFog, With<PlayerCamera>>,
+) {
+    if (fade.current - fade.target).abs() < f32::EPSILON {
+        return; // already settled — nothing to animate
+    }
+    let step = FOG_FADE_SPEED * time.delta_secs();
+    fade.current = if fade.current < fade.target {
+        (fade.current + step).min(fade.target)
+    } else {
+        (fade.current - step).max(fade.target)
+    };
+
+    let (extinction, inscattering) = fog_base();
+    if let Ok(mut fog) = camera.single_mut() {
+        // Scaling extinction/inscattering to 0 yields no fog; 1 is full strength.
+        fog.falloff = FogFalloff::Atmospheric {
+            extinction: extinction * fade.current,
+            inscattering: inscattering * fade.current,
+        };
+    }
 }
 
 /// WASD horizontal movement (relative to body yaw) + manual gravity & jump.

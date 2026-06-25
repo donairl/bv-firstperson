@@ -1,6 +1,6 @@
 //! First-person shooter prototype — core mechanic validation.
 //!
-//! Controls: WASD move, Space jump, mouse aim, F shoot, Esc toggle cursor lock.
+//! Controls: WASD move, Space jump, mouse aim, left click shoot, Esc toggle cursor lock.
 //! Shoot floating sphere "balloons" for points: green=4, red=8, yellow=16, white=20.
 //! Procedural hilly terrain (noise) + a staircase; physics/collision via bevy_rapier3d.
 
@@ -11,6 +11,7 @@ mod scenery;
 mod shooting;
 mod terrain;
 
+use bevy::light::NotShadowCaster;
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
@@ -72,11 +73,11 @@ fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugins(RapierPhysicsPlugin::<NoUserData>::default())
-        .add_plugins(RapierDebugRenderPlugin::default())
         .init_resource::<Score>()
         .init_resource::<GameTimer>()
         .init_resource::<Combo>()
         .init_resource::<HitFlash>()
+        .init_resource::<player::FogFade>()
         .add_systems(
             Startup,
             (
@@ -95,7 +96,10 @@ fn main() {
                 player::player_move,
                 player::mouse_look,
                 player::toggle_cursor,
+                player::toggle_fog,
+                player::animate_fog,
                 shooting::shoot,
+                shooting::move_projectiles,
                 balloons::move_balloons,
                 balloons::balloon_respawn,
                 effects::update_explosions,
@@ -111,7 +115,12 @@ fn main() {
 
 /// Sun so the scene is readable without polished lighting. (Ambient fill is added
 /// as a component on the camera in `player::setup_player`.)
-fn setup_environment(mut commands: Commands) {
+fn setup_environment(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    asset_server: Res<AssetServer>,
+) {
     commands.spawn((
         DirectionalLight {
             illuminance: 12_000.0,
@@ -119,6 +128,21 @@ fn setup_environment(mut commands: Commands) {
             ..default()
         },
         Transform::from_xyz(20.0, 40.0, 20.0).looking_at(Vec3::ZERO, Vec3::Y),
+    ));
+
+    // Sky dome: a large sphere textured on the inside. `cull_mode: None` renders
+    // the inner faces, `unlit` keeps it bright regardless of scene lighting, and
+    // `NotShadowCaster` stops the enclosing sphere from shadowing everything.
+    commands.spawn((
+        Mesh3d(meshes.add(Sphere::new(500.0))),
+        MeshMaterial3d(materials.add(StandardMaterial {
+            base_color_texture: Some(asset_server.load("sky.png")),
+            unlit: true,
+            cull_mode: None,
+            ..default()
+        })),
+        Transform::default(),
+        NotShadowCaster,
     ));
 }
 
