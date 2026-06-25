@@ -1,0 +1,2 @@
+   Compiling first-person v0.1.0 (/.data/home/donairl/PProject/GamingProject/first-person)
+    Finished `dev` profile [optimized + debuginfo] target(s) in 12.68s

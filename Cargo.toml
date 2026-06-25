@@ -1,0 +1,17 @@
+[package]
+name = "first-person"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bevy = "0.18.1"
+bevy_rapier3d = { version = "0.34", features = ["debug-render-3d"] }
+noise = "0.9"
+rand = "0.8"
+
+# Faster iterative compile for a prototype
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3
